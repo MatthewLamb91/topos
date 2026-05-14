@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>TOPOS</title>
+    <link rel="stylesheet" href="/static/function.css">
+    <script src="/static/script.js" defer></script>
+</head>
+
+<body>
+<div class="app">
+
+    <!-- Sidebar -->
+    <div class="sidebar">
+        <div class="sidebar-header">Presets</div>
+
+        <div class="sidebar-top">
+            <button class="preset-btn active" onclick="selectPreset(this,'Flat')">
+                <span>Flat</span><span class="preset-dot"></span>
+            </button>
+            <button class="preset-btn" onclick="selectPreset(this,'Wave')">
+                <span>Wave</span><span class="preset-dot"></span>
+            </button>
+            <button class="preset-btn" onclick="selectPreset(this,'Peak')">
+                <span>Peak</span><span class="preset-dot"></span>
+            </button>
+            <button class="preset-btn" onclick="selectPreset(this,'Valley')">
+                <span>Valley</span><span class="preset-dot"></span>
+            </button>
+            <button class="preset-btn" onclick="selectPreset(this,'Ramp')">
+                <span>Ramp</span><span class="preset-dot"></span>
+            </button>
+            <button class="preset-btn" onclick="selectPreset(this,'Custom 1')">
+                <span>Custom 1</span><span class="preset-dot"></span>
+            </button>
+        </div>
+
+        <div class="sidebar-bottom">
+            <button class="add-preset">+ New preset</button>
+            <button class="add-preset">+ Import preset</button>
+            <button class="add-preset">+ Export preset</button>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <div class="main">
+
+        <!-- Top Bar -->
+        <div class="topbar">
+            <span class="topbar-title">TOPOS</span>
+
+            <div class="tab-group">
+                <button class="tab active" onclick="switchTab(this,'color')">Color</button>
+                <button class="tab" onclick="switchTab(this,'height')">Height</button>
+                <button class="tab" onclick="switchTab(this,'speed')">Speed</button>
+                <button class="tab" onclick="switchTab(this,'special')">Grid</button>
+            </div>
+
+            <button class="show-btn">Apply</button>
+        </div>
+
+        <!-- Controls Bar -->
+        <div class="controls-bar" id="controls-bar">
+
+            <!-- Color Controls -->
+            <div id="color-controls" style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;width:100%;">
+                <span class="ctrl-label">Paint color</span>
+
+                <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;">
+                    <div class="color-swatch active" style="background:#E6F1FB;" onclick="pickSwatch(this,'#E6F1FB')"></div>
+                    <div class="color-swatch" style="background:#378ADD;" onclick="pickSwatch(this,'#378ADD')"></div>
+                    <div class="color-swatch" style="background:#1D9E75;" onclick="pickSwatch(this,'#1D9E75')"></div>
+                    <div class="color-swatch" style="background:#97C459;" onclick="pickSwatch(this,'#97C459')"></div>
+                    <div class="color-swatch" style="background:#EF9F27;" onclick="pickSwatch(this,'#EF9F27')"></div>
+                    <div class="color-swatch" style="background:#D85A30;" onclick="pickSwatch(this,'#D85A30')"></div>
+                    <div class="color-swatch" style="background:#E24B4A;" onclick="pickSwatch(this,'#E24B4A')"></div>
+                    <div class="color-swatch" style="background:#7F77DD;" onclick="pickSwatch(this,'#7F77DD')"></div>
+                    <div class="color-swatch" style="background:#D4537E;" onclick="pickSwatch(this,'#D4537E')"></div>
+                    <div class="color-swatch" style="background:#888780;" onclick="pickSwatch(this,'#888780')"></div>
+                </div>
+
+                <div class="ctrl-divider"></div>
+                <button class="erase-btn" id="erase-btn" onclick="toggleErase()">Erase</button>
+                <div class="ctrl-divider"></div>
+                <button class="mini-btn" onclick="clearAllColors()">Clear all</button>
+            </div>
+
+            <!-- Height Controls -->
+            <div id="height-controls" style="display:none;align-items:center;gap:20px;width:100%;">
+                <div class="ctrl-group">
+                    <span class="ctrl-label">Height</span>
+                    <input type="range" min="0" max="100" value="50" step="1"
+                           id="height-slider" oninput="updateAll(this.value)">
+                    <span class="ctrl-value" id="height-val">50%</span>
+                </div>
+
+                <div class="ctrl-divider"></div>
+
+                <div class="ctrl-group">
+                    <span class="ctrl-label">Select all</span>
+                    <button class="mini-btn" onclick="selectAll()">All</button>
+                    <button class="mini-btn" onclick="clearSel()">None</button>
+                </div>
+            </div>
+
+            <!-- Speed Controls -->
+            <div id="speed-controls" style="display:none;align-items:center;gap:20px;width:100%;">
+                <div class="ctrl-group">
+                    <span class="ctrl-label">Speed</span>
+                    <input type="range" min="1" max="10" value="5" step="1"
+                           id="speed-slider" oninput="updateSpeed(this.value)">
+                    <span class="ctrl-value" id="speed-val">5</span>
+                </div>
+            </div>
+
+            <!-- Special Controls -->
+            <div id="special-controls" style="display:none;align-items:center;gap:12px;width:100%;">
+                <div class="ctrl-group">
+                    <span class="ctrl-label">Grid</span>
+                    <select id="grid-size" onchange="changeGridSize(this.value)">
+                        <option value="2">2×2</option>
+                        <option value="4" selected>4×4</option>
+                        <option value="6">6×6</option>
+                    </select>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- Grid Area -->
+        <div class="grid-area">
+
+            <div style="display:flex;gap:10px;">
+                <div style="width:28px;flex-shrink:0;"></div>
+
+                <div class="grid-label-row">
+                    <div class="col-label">Col A</div>
+                    <div class="col-label">Col B</div>
+                    <div class="col-label">Col C</div>
+                    <div class="col-label">Col D</div>
+                </div>
+            </div>
+
+            <div class="grid-with-labels">
+                <div class="row-labels">
+                    <div class="row-label">R1</div>
+                    <div class="row-label">R2</div>
+                    <div class="row-label">R3</div>
+                    <div class="row-label">R4</div>
+                </div>
+
+                <div class="grid" id="main-grid"></div>
+            </div>
+        </div>
+
+        <!-- Status Bar -->
+        <div class="status-bar">
+            <div class="status-item"><span class="status-dot"></span>Connected</div>
+            <div class="status-item">Preset: <strong id="active-preset-name">Flat</strong></div>
+            <div class="status-item" id="sel-count">16 cells selected</div>
+
+            <div class="paint-indicator" id="paint-indicator">
+                <span>Paint:</span>
+                <div class="paint-preview" id="paint-preview" style="background:#E6F1FB;"></div>
+                <span id="paint-hex">#E6F1FB</span>
+            </div>
+        </div>
+
+    </div> <!-- end .main -->
+
+</div> <!-- end .app -->
+
+<script src="/static/script.js"></script>
+</body>
+</html>
