@@ -1,175 +1,140 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <title>TOPOS</title>
-    <link rel="stylesheet" href="website/static/function.css">
-    <script src="website/static/script.js" defer></script>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Topos 4x4</title>
+<link rel="stylesheet" href="style.css">
 </head>
-
 <body>
-<div class="app">
 
-    <!-- Sidebar -->
-    <div class="sidebar">
-        <div class="sidebar-header">Presets</div>
+<header>
+  <h1>TOPOS</h1>
+  <p>4 x 4 TERRAIN CONTROLLER — HEXES &amp; HEIGHTS</p>
+</header>
 
-        <div class="sidebar-top">
-            <button class="preset-btn active" onclick="selectPreset(this,'Flat')">
-                <span>Flat</span><span class="preset-dot"></span>
-            </button>
-            <button class="preset-btn" onclick="selectPreset(this,'Wave')">
-                <span>Wave</span><span class="preset-dot"></span>
-            </button>
-            <button class="preset-btn" onclick="selectPreset(this,'Peak')">
-                <span>Peak</span><span class="preset-dot"></span>
-            </button>
-            <button class="preset-btn" onclick="selectPreset(this,'Valley')">
-                <span>Valley</span><span class="preset-dot"></span>
-            </button>
-            <button class="preset-btn" onclick="selectPreset(this,'Ramp')">
-                <span>Ramp</span><span class="preset-dot"></span>
-            </button>
-            <button class="preset-btn" onclick="selectPreset(this,'Custom 1')">
-                <span>Custom 1</span><span class="preset-dot"></span>
-            </button>
-        </div>
+<div class="bar">
+  <span>3 heights</span> — Flat · Mid · Max &nbsp;|&nbsp;
+  <span>6 elements</span> — None · Fire · Water · Earth · Lightning · Ice
+</div>
 
-        <div class="sidebar-bottom">
-            <button class="add-preset">+ New preset</button>
-            <button class="add-preset">+ Import preset</button>
-            <button class="add-preset">+ Export preset</button>
-        </div>
+<div class="slaves">
+  <div class="slave-pill" id="sl0">Slave 1: --</div>
+  <div class="slave-pill" id="sl1">Slave 2: --</div>
+  <div class="slave-pill" id="sl2">Slave 3: --</div>
+</div>
+
+<div class="board" id="board"></div>
+
+<!-- SELECTION CONTROL -->
+<div class="sel-panel">
+  <div class="sec-title">
+    Selection Control
+    <span style="color:var(--muted);font-size:9px;" id="sel-count">(0 tiles)</span>
+  </div>
+  <div class="sel-row">
+    <span class="sel-label">Height</span>
+    <input type="range" class="sel-slider" min="0" max="2" value="0"
+      id="sel-h" oninput="applyHeightToSelected(parseInt(this.value))">
+    <span class="sel-val" id="sel-hv">0</span>
+  </div>
+  <div class="sel-row" style="margin-top:8px;flex-wrap:wrap;gap:5px;">
+    <button class="btn sm" onclick="selectAll()">All</button>
+    <button class="btn sm" onclick="clearSel()">Clear</button>
+    <button class="btn sm" onclick="selRow(0)">Row1</button>
+    <button class="btn sm" onclick="selRow(1)">Row2</button>
+    <button class="btn sm" onclick="selRow(2)">Row3</button>
+    <button class="btn sm" onclick="selRow(3)">Row4</button>
+    <button class="btn sm" onclick="selCol(0)">Col1</button>
+    <button class="btn sm" onclick="selCol(1)">Col2</button>
+    <button class="btn sm" onclick="selCol(2)">Col3</button>
+    <button class="btn sm" onclick="selCol(3)">Col4</button>
+  </div>
+</div>
+
+<!-- WAVE ANIMATION -->
+<div class="wave-panel">
+  <div class="sec-title">Wave Animation</div>
+  <div class="wave-row">
+    <span class="wave-label">Start tile (0-15)</span>
+    <input type="number" class="wave-num" id="wv-start" value="0"   min="0" max="15">
+    <span class="wave-label" style="min-width:60px;">End tile</span>
+    <input type="number" class="wave-num" id="wv-end"   value="15"  min="0" max="15">
+  </div>
+  <div class="wave-row">
+    <span class="wave-label">Height (0-2)</span>
+    <input type="number" class="wave-num" id="wv-h"     value="2"   min="0" max="2">
+    <span class="wave-label" style="min-width:80px;">Step delay ms</span>
+    <input type="number" class="wave-num" id="wv-step"  value="150" min="50" max="2000">
+  </div>
+  <div class="btn-row">
+    <button class="btn preset" onclick="startWave()">▶ Start Wave</button>
+    <button class="btn danger" onclick="stopWave()">■ Stop Wave</button>
+  </div>
+  <div class="wave-hint">Tile 0 = top-left · tile 15 = bottom-right · wave moves tile by tile</div>
+  <div id="wave-status"></div>
+</div>
+
+<!-- TERRAIN PRESET CARDS -->
+<div class="sec">
+  <div class="sec-title">Terrain Preset Cards — play one to begin a match</div>
+  <div class="preset-cards">
+    <div class="pcard" onclick="loadPreset('ashenveil')">
+      <div class="pcard-name">Ashenveil</div>
+      <div class="pcard-grid" id="pg-ashenveil"></div>
+      <div class="pcard-desc">Scorched peaks meet frozen valleys</div>
     </div>
+    <div class="pcard" onclick="loadPreset('stormpeaks')">
+      <div class="pcard-name">Stormpeaks</div>
+      <div class="pcard-grid" id="pg-stormpeaks"></div>
+      <div class="pcard-desc">Lightning crowns twin mountain ranges</div>
+    </div>
+    <div class="pcard" onclick="loadPreset('frostveil')">
+      <div class="pcard-name">Frostveil</div>
+      <div class="pcard-grid" id="pg-frostveil"></div>
+      <div class="pcard-desc">Ice dominates the high ground</div>
+    </div>
+  </div>
+</div>
 
-    <!-- Main Content -->
-    <div class="main">
+<!-- MATCH START -->
+<div class="sec">
+  <div class="sec-title">Match Start</div>
+  <div class="btn-row">
+    <button class="btn preset" onclick="loadRandom()">⚄ Random Terrain Card</button>
+    <button class="btn" onclick="clearAll()">Reset Board</button>
+  </div>
+</div>
 
-        <!-- Top Bar -->
-        <div class="topbar">
-            <span class="topbar-title">TOPOS</span>
+<!-- HEIGHT PRESETS -->
+<div class="sec">
+  <div class="sec-title">Height presets</div>
+  <div class="btn-row">
+    <button class="btn" onclick="setAllH(0)">All Flat</button>
+    <button class="btn" onclick="setAllH(2)">All Max</button>
+    <button class="btn" onclick="setAllH(1)">All Mid</button>
+    <button class="btn" onclick="setHPattern([2,0,2,0,0,2,0,2,2,0,2,0,0,2,0,2])">Checkerboard</button>
+  </div>
+</div>
 
-            <div class="tab-group">
-                <button class="tab active" onclick="switchTab(this,'color')">Color</button>
-                <button class="tab" onclick="switchTab(this,'height')">Height</button>
-                <button class="tab" onclick="switchTab(this,'speed')">Speed</button>
-                <button class="tab" onclick="switchTab(this,'special')">Grid</button>
-            </div>
+<!-- ELEMENT PRESETS -->
+<div class="sec">
+  <div class="sec-title">Element presets</div>
+  <div class="btn-row-3">
+    <button class="btn"       onclick="setAllE(0)">Clear All</button>
+    <button class="btn fire"  onclick="setAllE(1)">All Fire</button>
+    <button class="btn water" onclick="setAllE(2)">All Water</button>
+    <button class="btn earth" onclick="setAllE(3)">All Earth</button>
+    <button class="btn light" onclick="setAllE(4)">All Lightning</button>
+    <button class="btn ice"   onclick="setAllE(5)">All Ice</button>
+  </div>
+</div>
 
-            <button class="show-btn">Apply</button>
-        </div>
+<div class="status-bar">
+  <span><span id="sdot"></span>192.168.4.1</span>
+  <span id="adc-vals">--</span>
+</div>
 
-        <!-- Controls Bar -->
-        <div class="controls-bar" id="controls-bar">
-
-            <!-- Color Controls -->
-            <div id="color-controls" style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;width:100%;">
-                <span class="ctrl-label">Paint color</span>
-
-                <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;">
-                    <div class="color-swatch active" style="background:#E6F1FB;" onclick="pickSwatch(this,'#E6F1FB')"></div>
-                    <div class="color-swatch" style="background:#378ADD;" onclick="pickSwatch(this,'#378ADD')"></div>
-                    <div class="color-swatch" style="background:#1D9E75;" onclick="pickSwatch(this,'#1D9E75')"></div>
-                    <div class="color-swatch" style="background:#97C459;" onclick="pickSwatch(this,'#97C459')"></div>
-                    <div class="color-swatch" style="background:#EF9F27;" onclick="pickSwatch(this,'#EF9F27')"></div>
-                    <div class="color-swatch" style="background:#D85A30;" onclick="pickSwatch(this,'#D85A30')"></div>
-                    <div class="color-swatch" style="background:#E24B4A;" onclick="pickSwatch(this,'#E24B4A')"></div>
-                    <div class="color-swatch" style="background:#7F77DD;" onclick="pickSwatch(this,'#7F77DD')"></div>
-                    <div class="color-swatch" style="background:#D4537E;" onclick="pickSwatch(this,'#D4537E')"></div>
-                    <div class="color-swatch" style="background:#888780;" onclick="pickSwatch(this,'#888780')"></div>
-                </div>
-
-                <div class="ctrl-divider"></div>
-                <button class="erase-btn" id="erase-btn" onclick="toggleErase()">Erase</button>
-                <div class="ctrl-divider"></div>
-                <button class="mini-btn" onclick="clearAllColors()">Clear all</button>
-            </div>
-
-            <!-- Height Controls -->
-            <div id="height-controls" style="display:none;align-items:center;gap:20px;width:100%;">
-                <div class="ctrl-group">
-                    <span class="ctrl-label">Height</span>
-                    <input type="range" min="0" max="100" value="50" step="1"
-                           id="height-slider" oninput="updateAll(this.value)">
-                    <span class="ctrl-value" id="height-val">50%</span>
-                </div>
-
-                <div class="ctrl-divider"></div>
-
-                <div class="ctrl-group">
-                    <span class="ctrl-label">Select all</span>
-                    <button class="mini-btn" onclick="selectAll()">All</button>
-                    <button class="mini-btn" onclick="clearSel()">None</button>
-                </div>
-            </div>
-
-            <!-- Speed Controls -->
-            <div id="speed-controls" style="display:none;align-items:center;gap:20px;width:100%;">
-                <div class="ctrl-group">
-                    <span class="ctrl-label">Speed</span>
-                    <input type="range" min="1" max="10" value="5" step="1"
-                           id="speed-slider" oninput="updateSpeed(this.value)">
-                    <span class="ctrl-value" id="speed-val">5</span>
-                </div>
-            </div>
-
-            <!-- Special Controls -->
-            <div id="special-controls" style="display:none;align-items:center;gap:12px;width:100%;">
-                <div class="ctrl-group">
-                    <span class="ctrl-label">Grid</span>
-                    <select id="grid-size" onchange="changeGridSize(this.value)">
-                        <option value="2">2×2</option>
-                        <option value="4" selected>4×4</option>
-                        <option value="6">6×6</option>
-                    </select>
-                </div>
-            </div>
-
-        </div>
-
-        <!-- Grid Area -->
-        <div class="grid-area">
-
-            <div style="display:flex;gap:10px;">
-                <div style="width:28px;flex-shrink:0;"></div>
-
-                <div class="grid-label-row">
-                    <div class="col-label">Col A</div>
-                    <div class="col-label">Col B</div>
-                    <div class="col-label">Col C</div>
-                    <div class="col-label">Col D</div>
-                </div>
-            </div>
-
-            <div class="grid-with-labels">
-                <div class="row-labels">
-                    <div class="row-label">R1</div>
-                    <div class="row-label">R2</div>
-                    <div class="row-label">R3</div>
-                    <div class="row-label">R4</div>
-                </div>
-
-                <div class="grid" id="main-grid"></div>
-            </div>
-        </div>
-
-        <!-- Status Bar -->
-        <div class="status-bar">
-            <div class="status-item"><span class="status-dot"></span>Connected</div>
-            <div class="status-item">Preset: <strong id="active-preset-name">Flat</strong></div>
-            <div class="status-item" id="sel-count">16 cells selected</div>
-
-            <div class="paint-indicator" id="paint-indicator">
-                <span>Paint:</span>
-                <div class="paint-preview" id="paint-preview" style="background:#E6F1FB;"></div>
-                <span id="paint-hex">#E6F1FB</span>
-            </div>
-        </div>
-
-    </div> <!-- end .main -->
-
-</div> <!-- end .app -->
-
-<script src="/static/script.js"></script>
+<script src="script.js"></script>
 </body>
 </html>
