@@ -1,246 +1,267 @@
-let gridSize = 4; // default 4×4
-let heights = [];
-let curPattern = null;
-let cellColors = [];
-const twoPatterns = {
-    Flat:      [50, 50, 50, 50],
-    Ramp:      [0, 25, 50, 75],
-    Peak:      [25, 100, 75, 50]
-};
-const fourPatterns = {
-    Flat:      [50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50],
-    Wave:      [20,40,60,80,40,60,80,60,60,80,60,40,80,60,40,20],
-    Peak:      [20,40,40,20,40,70,70,40,40,70,70,40,20,40,40,20],
-    Valley:    [80,60,60,80,60,30,30,60,60,30,30,60,80,60,60,80],
-    Ramp:      [10,25,40,55,25,40,55,70,40,55,70,85,55,70,85,100],
-    'Custom 1':[65,30,75,45,20,85,50,60,90,35,55,25,70,40,80,15]
- };
-const sixPatterns = {
-  
-};
-let selected = new Set();
+// ── Constants ──────────────────────────────────────────────────────
+const TOTAL   = 16;
+const CLASSES = ['m','s1','s2','s3'];
+const BOARDS  = ['Master','Slave1','Slave2','Slave3'];
+const HCLASS  = ['h0','h1','h2'];
+const ECOL    = ['#333344','#ff3c00','#0050ff','#00b428','#ffdc00','#50c8ff'];
+const ESHADOW = [
+  'none',
+  '0 0 5px #ff3c0099',
+  '0 0 5px #0050ff99',
+  '0 0 5px #00b42899',
+  '0 0 5px #ffdc0099',
+  '0 0 5px #50c8ff99'
+];
 
-function initArrays(n) {
-  gridSize = n;
-  const total = n * n;
+// ── State ──────────────────────────────────────────────────────────
+let selH = new Array(TOTAL).fill(false);
+let curH = new Array(TOTAL).fill(0);
+let curE = new Array(TOTAL).fill(0);
 
-  heights = Array.from({length: total}, () => 50);
-  cellColors = Array.from({length: total}, () => null);
-  selected = new Set(Array.from({length: total}, (_, i) => i));
+// Wave state (client-side simulation for CodePen demo)
+let waveRunning   = false;
+let waveStart     = 0;
+let waveEnd       = 15;
+let waveHeightVal = 2;
+let waveStepMs    = 150;
+let waveCurrent   = 0;
+let waveDirection = 1;
+let waveDropping  = false;
+let waveInterval  = null;
+
+// ── Terrain presets ────────────────────────────────────────────────
+const PRESETS = {
+  ashenveil:  {
+    h: [2,0,1,2, 1,2,0,1, 0,1,2,0, 2,1,0,1],
+    e: [1,3,0,2, 0,1,3,5, 2,0,1,3, 5,2,3,0]
+  },
+  stormpeaks: {
+    h: [0,2,0,2, 2,1,2,0, 0,2,1,2, 2,0,2,1],
+    e: [4,0,4,2, 0,4,0,3, 2,1,4,0, 0,4,2,4]
+  },
+  frostveil:  {
+    h: [2,2,0,0, 1,2,2,1, 0,0,2,2, 1,0,1,2],
+    e: [5,5,0,2, 0,5,5,0, 2,3,5,5, 0,2,0,5]
+  },
+};
+
+// ── Build board ────────────────────────────────────────────────────
+const boardEl = document.getElementById('board');
+for (let i = 0; i < TOTAL; i++) {
+  const b     = Math.floor(i / 4);
+  const c     = CLASSES[b];
+  const bname = b === 0 ? 'master' : 'slave' + b;
+  boardEl.innerHTML += `
+    <div class="tc b-${bname}" id="tc${i}" onclick="toggleSel(${i})">
+      <div class="tc-num ${c}">${BOARDS[b][0]}${(i % 4) + 1}</div>
+      <div class="tc-vis">
+        <div class="tc-fill h0" id="fill${i}"></div>
+        <div class="tc-led"     id="led${i}"></div>
+        <div class="tc-wav"     id="wav${i}"></div>
+      </div>
+      <div class="h-btns">
+        <button class="hb active" id="hb${i}-0" onclick="event.stopPropagation();setH(${i},0)">Flat</button>
+        <button class="hb"        id="hb${i}-1" onclick="event.stopPropagation();setH(${i},1)">Mid</button>
+        <button class="hb"        id="hb${i}-2" onclick="event.stopPropagation();setH(${i},2)">Max</button>
+      </div>
+      <div class="e-btns">
+        <button class="eb active" data-e="0" onclick="event.stopPropagation();setE(${i},0)">—</button>
+        <button class="eb"        data-e="1" onclick="event.stopPropagation();setE(${i},1)">🔥</button>
+        <button class="eb"        data-e="2" onclick="event.stopPropagation();setE(${i},2)">💧</button>
+        <button class="eb"        data-e="3" onclick="event.stopPropagation();setE(${i},3)">🌿</button>
+        <button class="eb"        data-e="4" onclick="event.stopPropagation();setE(${i},4)">⚡</button>
+        <button class="eb"        data-e="5" onclick="event.stopPropagation();setE(${i},5)">❄️</button>
+      </div>
+    </div>`;
 }
 
-function changeGridSize(n) {
-  n = parseInt(n);
-  initArrays(n);
-
-  // Update grid template
-  const grid = document.getElementById("main-grid");
-  grid.style.gridTemplateColumns = `repeat(${n}, 1fr)`;
-
-  // Adjust cell height so 6×6 fits
-  const cellHeight = n === 2 ? 120 : n === 4 ? 80 : 55;
-
-  // Rebuild row labels
-  const rowLabels = document.querySelector(".row-labels");
-  rowLabels.innerHTML = "";
-  for (let r = 1; r <= n; r++) {
-    const div = document.createElement("div");
-    div.className = "row-label";
-    div.style.height = cellHeight + "px";
-    div.textContent = "R" + r;
-    rowLabels.appendChild(div);
-  }
-
-  // Rebuild column labels
-  const colLabels = document.querySelector(".grid-label-row");
-  colLabels.innerHTML = "";
-  colLabels.style.gridTemplateColumns = `repeat(${n}, 1fr)`;
-  for (let c = 0; c < n; c++) {
-    const div = document.createElement("div");
-    div.className = "col-label";
-    div.textContent = "Col " + String.fromCharCode(65 + c);
-    colLabels.appendChild(div);
-  }
-
-  // Rebuild grid cells
-  buildGrid(cellHeight);
-}
-
-let activeTab = 'color';
-let paintColor = '#E6F1FB';
-let eraseMode = false;
-
-function buildGrid(cellHeightOverride = 80) {
-  const grid = document.getElementById('main-grid');
-  grid.innerHTML = '';
-
-  heights.forEach((h, i) => {
+// ── Build preset mini-grids ────────────────────────────────────────
+function buildPresetGrid(id, preset) {
+  const grid    = document.getElementById('pg-' + id);
+  const heights = ['12%', '55%', '90%'];
+  const bgFill  = ['#2a3040', '#1D9E75', '#25c491'];
+  for (let i = 0; i < 16; i++) {
+    const h    = preset.h[i];
+    const e    = preset.e[i];
     const cell = document.createElement('div');
-    cell.className = 'cell selected';
-    cell.id = 'cell-' + i;
-    cell.style.height = cellHeightOverride + "px";
-
+    cell.className      = 'pcell';
+    cell.style.background = '#111418';
     cell.innerHTML = `
-      <div class="cell-fill" id="fill-${i}" style="height:${h}%"></div>
-      <span class="cell-val" id="val-${i}">${h}%</span>
-    `;
-
-    cell.onclick = () => cellClick(i);
+      <div class="pcell-fill"
+           style="height:${heights[h]};background:${bgFill[h]};"></div>
+      <div class="pcell-dot"
+           style="background:${ECOL[e]};
+                  box-shadow:${e > 0 ? '0 0 3px ' + ECOL[e] : 'none'};"></div>`;
     grid.appendChild(cell);
-  });
+  }
+}
+buildPresetGrid('ashenveil',  PRESETS.ashenveil);
+buildPresetGrid('stormpeaks', PRESETS.stormpeaks);
+buildPresetGrid('frostveil',  PRESETS.frostveil);
 
-  updateSelCount();
+// ── UI update helpers ──────────────────────────────────────────────
+function updateHUI(i, h) {
+  curH[i] = h;
+  document.getElementById('fill' + i).className = 'tc-fill ' + HCLASS[h];
+  for (let x = 0; x < 3; x++)
+    document.getElementById('hb' + i + '-' + x).classList.toggle('active', x === h);
 }
 
-function cellClick(i) {
-  if (activeTab === 'color') {
-    if (eraseMode) {
-      cellColors[i] = null;
-    } else {
-      cellColors[i] = paintColor;
+function updateEUI(i, e) {
+  curE[i] = e;
+  const led = document.getElementById('led' + i);
+  led.style.background = ECOL[e];
+  led.style.boxShadow  = ESHADOW[e];
+  document.getElementById('tc' + i).style.borderColor = e === 0 ? '' : ECOL[e];
+  document.querySelectorAll('#tc' + i + ' .eb')
+    .forEach(b => b.classList.toggle('active', parseInt(b.dataset.e) === e));
+}
+
+// ── Tile setters ───────────────────────────────────────────────────
+// In CodePen these update the UI only.
+// On the ESP32 these would also call fetch('/set?...').
+function setH(tile, h) {
+  updateHUI(tile, h);
+  // fetch('/set?tile='+tile+'&height='+h).catch(()=>{});
+}
+function setE(tile, e) {
+  updateEUI(tile, e);
+  // fetch('/elem?tile='+tile+'&elem='+e).catch(()=>{});
+}
+
+// ── Bulk helpers ───────────────────────────────────────────────────
+function setAllH(h)           { for (let i = 0; i < TOTAL; i++) setH(i, h); }
+function setAllE(e)           { for (let i = 0; i < TOTAL; i++) setE(i, e); }
+function setHPattern(arr)     { arr.forEach((h, i) => setH(i, h)); }
+function clearAll()           { setAllH(0); setAllE(0); }
+
+// ── Preset loaders ─────────────────────────────────────────────────
+function loadPreset(name) {
+  const p = PRESETS[name];
+  if (!p) return;
+  for (let i = 0; i < 16; i++) {
+    updateHUI(i, p.h[i]);
+    updateEUI(i, p.e[i]);
+  }
+}
+
+function loadRandom() {
+  for (let i = 0; i < 16; i++) {
+    setH(i, Math.floor(Math.random() * 3));
+    setE(i, Math.floor(Math.random() * 6));
+  }
+}
+
+// ── Wave animation (client-side, non-blocking via setInterval) ─────
+function startWave() {
+  if (waveRunning) stopWave();
+
+  waveStart     = parseInt(document.getElementById('wv-start').value);
+  waveEnd       = parseInt(document.getElementById('wv-end').value);
+  waveHeightVal = parseInt(document.getElementById('wv-h').value);
+  waveStepMs    = parseInt(document.getElementById('wv-step').value);
+  waveDirection = waveEnd >= waveStart ? 1 : -1;
+  waveCurrent   = waveStart;
+  waveDropping  = false;
+  waveRunning   = true;
+
+  document.getElementById('wave-status').textContent =
+    'Wave running: tile ' + waveStart + ' → ' + waveEnd + '...';
+
+  waveInterval = setInterval(() => {
+    // Clear all wave indicators
+    for (let i = 0; i < TOTAL; i++)
+      document.getElementById('wav' + i).classList.remove('active');
+
+    if (waveDropping) {
+      setH(waveEnd, 0);
+      stopWave();
+      document.getElementById('wave-status').textContent = 'Wave complete.';
+      return;
     }
-    applyFillStyle(i);
-  } else {
-    const cell = document.getElementById('cell-' + i);
-    if (selected.has(i)) { selected.delete(i); cell.classList.remove('selected'); }
-    else { selected.add(i); cell.classList.add('selected'); }
-    applyFillStyle(i);
-    updateSelCount();
-  }
+
+    // Drop previous tile
+    const prev = waveCurrent - waveDirection;
+    const lo   = Math.min(waveStart, waveEnd);
+    const hi   = Math.max(waveStart, waveEnd);
+    if (prev >= lo && prev <= hi) setH(prev, 0);
+
+    // Raise current tile and highlight it
+    setH(waveCurrent, waveHeightVal);
+    document.getElementById('wav' + waveCurrent).classList.add('active');
+    document.getElementById('wave-status').textContent =
+      'Wave running — tile ' + waveCurrent;
+
+    if (waveCurrent === waveEnd) {
+      waveDropping = true;
+      return;
+    }
+    waveCurrent += waveDirection;
+  }, waveStepMs);
 }
 
-function applyFillStyle(i) {
-  const fill = document.getElementById('fill-' + i);
-  const cell = document.getElementById('cell-' + i);
-  if (cellColors[i]) {
-    fill.style.background = cellColors[i];
-    fill.style.opacity = '0.75';
-    cell.style.borderColor = cellColors[i];
-  } else {
-    fill.style.background = cell.classList.contains('selected') ? '#B5D4F4' : '#E6F1FB';
-    fill.style.opacity = '1';
-    cell.style.borderColor = '';
-  }
+function stopWave() {
+  if (waveInterval) { clearInterval(waveInterval); waveInterval = null; }
+  waveRunning  = false;
+  waveDropping = false;
+  for (let i = 0; i < TOTAL; i++)
+    document.getElementById('wav' + i).classList.remove('active');
 }
 
-function pickSwatch(el, color) {
-  eraseMode = false;
-  document.getElementById('erase-btn').classList.remove('active');
-  document.querySelectorAll('.color-swatch').forEach(s => s.classList.remove('active'));
-  el.classList.add('active');
-  paintColor = color;
-  document.getElementById('custom-color').value = color;
-  updatePaintIndicator();
-}
-
-function pickCustom(color) {
-  eraseMode = false;
-  document.getElementById('erase-btn').classList.remove('active');
-  document.querySelectorAll('.color-swatch').forEach(s => s.classList.remove('active'));
-  paintColor = color;
-  updatePaintIndicator();
-}
-
-function toggleErase() {
-  eraseMode = !eraseMode;
-  document.getElementById('erase-btn').classList.toggle('active', eraseMode);
-  if (eraseMode) document.querySelectorAll('.color-swatch').forEach(s => s.classList.remove('active'));
-  updatePaintIndicator();
-}
-
-function updatePaintIndicator() {
-  const preview = document.getElementById('paint-preview');
-  const hex = document.getElementById('paint-hex');
-  preview.style.background = eraseMode ? 'transparent' : paintColor;
-  preview.style.border = eraseMode ? '0.5px dashed #bbb' : '0.5px solid #e0e0e0';
-  hex.textContent = eraseMode ? 'Eraser' : paintColor;
-}
-
-function clearAllColors() {
-  for (let i = 0; i < heights.length; i++) {
-    cellColors[i] = null;
-    applyFillStyle(i);
-  }
-}
-
-function updateAll(val) {
-  document.getElementById('height-val').textContent = val + '%';
-  selected.forEach(i => {
-    heights[i] = parseInt(val);
-    document.getElementById('fill-' + i).style.height = val + '%';
-    document.getElementById('val-' + i).textContent = val + '%';
-  });
-}
-
-function updateSpeed(val) {
-  document.getElementById('speed-val').textContent = val;
-}
-
-function selectAll() {
-  for (let i = 0; i < heights.length; i++) {
-    selected.add(i);
-    document.getElementById('cell-' + i).classList.add('selected');
-    applyFillStyle(i);
-  }
+// ── Selection ──────────────────────────────────────────────────────
+function toggleSel(i) {
+  selH[i] = !selH[i];
+  document.getElementById('tc' + i).classList.toggle('selected', selH[i]);
   updateSelCount();
 }
-
 function clearSel() {
-  selected.clear();
-  for (let i = 0; i < heights.length; i++) {
-    document.getElementById('cell-' + i).classList.remove('selected');
-    applyFillStyle(i);
+  for (let i = 0; i < TOTAL; i++) {
+    selH[i] = false;
+    document.getElementById('tc' + i).classList.remove('selected');
   }
   updateSelCount();
 }
-
+function selectAll() {
+  for (let i = 0; i < TOTAL; i++) {
+    selH[i] = true;
+    document.getElementById('tc' + i).classList.add('selected');
+  }
+  updateSelCount();
+}
+function selRow(r) {
+  clearSel();
+  for (let c = 0; c < 4; c++) {
+    const t = r * 4 + c;
+    selH[t] = true;
+    document.getElementById('tc' + t).classList.add('selected');
+  }
+  updateSelCount();
+}
+function selCol(col) {
+  clearSel();
+  for (let r = 0; r < 4; r++) {
+    const t = r * 4 + col;
+    selH[t] = true;
+    document.getElementById('tc' + t).classList.add('selected');
+  }
+  updateSelCount();
+}
 function updateSelCount() {
+  const n = selH.filter(Boolean).length;
   document.getElementById('sel-count').textContent =
-    selected.size + ' cell' + (selected.size !== 1 ? 's' : '') + ' selected';
+    '(' + n + ' tile' + (n !== 1 ? 's' : '') + ')';
+}
+function applyHeightToSelected(h) {
+  document.getElementById('sel-hv').textContent = h;
+  for (let i = 0; i < TOTAL; i++) if (selH[i]) setH(i, h);
 }
 
-function switchTab(btn, tab) {
-  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-  btn.classList.add('active');
-  activeTab = tab;
-  ['color', 'height', 'speed', 'special'].forEach(t => {
-    document.getElementById(t + '-controls').style.display = t === tab ? 'flex' : 'none';
-  });
-  document.getElementById('paint-indicator').style.display = tab === 'color' ? 'flex' : 'none';
-}
-
-function selectPreset(btn, name) {
-  document.querySelectorAll('.preset-btn').forEach(b => b.classList.remove('active'));
-  btn.classList.add('active');
-  document.getElementById('active-preset-name').textContent = name;
-  const p = fourpatterns[name] || fourpatterns['Flat'];
-  p.forEach((h, i) => {
-    heights[i] = h;
-    document.getElementById('fill-' + i).style.height = h + '%';
-    document.getElementById('val-' + i).textContent = h + '%';
-  });
-}
-
-function connect() {
-    ws = new WebSocket("ws://localhost:8000/ws/live");
-
-
-    ws.onopen = () => {
-        console.log("WebSocket connected");
-    };
-
-    ws.onclose = () => {
-        console.log("WebSocket closed");
-        setTimeout(connect, 1000);
-    };
-
-    ws.onmessage = (event) => {
-        console.log("Received:", event.data);
-        const data = JSON.parse(event.data);
-    };
-}
-
-connect();
-buildGrid();
-changeGridSize(gridSize);
-updatePaintIndicator();
+// ── Slave status simulation for CodePen ───────────────────────────
+// On the real ESP32 this polls /status every 300ms.
+// In CodePen we just show connected placeholders.
+['sl0','sl1','sl2'].forEach((id, i) => {
+  const el = document.getElementById(id);
+  el.textContent  = 'Slave ' + (i + 1) + ': demo';
+  el.style.color  = '#25c491';
+});
+document.getElementById('adc-vals').textContent = 'Demo mode';
